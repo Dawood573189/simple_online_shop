@@ -1,0 +1,173 @@
+import streamlit as st
+import random
+
+# ---------------- Backend Data ----------------
+
+# Static product list (Product ID -> dict)
+PRODUCTS = {
+    1: {"name": "Laptop", "price": 120000},
+    2: {"name": "Smartphone", "price": 60000},
+    3: {"name": "Headphones", "price": 5000},
+    4: {"name": "Keyboard", "price": 2500},
+    5: {"name": "Mouse", "price": 1500},
+}
+
+# Use session_state to persist cart between button clicks
+if "cart" not in st.session_state:
+    st.session_state["cart"] = []  # list of product_ids
+
+cart = st.session_state["cart"]
+
+
+# ---------------- Functions (Logic) ----------------
+
+def show_products():
+    """Return all available products as list of (id, name, price)."""
+    data = []
+    for pid, info in PRODUCTS.items():
+        data.append((pid, info["name"], info["price"]))
+    return data
+
+
+def add_to_cart(cart_list, product_id):
+    """Add a product to cart_list if it exists."""
+    if product_id in PRODUCTS:
+        cart_list.append(product_id)
+        return True, None
+    else:
+        return False, "Invalid Product ID"
+
+
+def view_cart(cart_list):
+    """Return details of items in the cart."""
+    items = []
+    for pid in cart_list:
+        prod = PRODUCTS.get(pid)
+        if prod:
+            items.append((pid, prod["name"], prod["price"]))
+    return items
+
+
+def remove_from_cart(cart_list, product_id):
+    """Remove one occurrence of product_id from the cart_list."""
+    if product_id in cart_list:
+        cart_list.remove(product_id)
+        return True, None
+    else:
+        return False, "Item not found in cart"
+
+
+def calculate_total(cart_list):
+    """Calculate total price of all items in cart_list."""
+    total = 0
+    for pid in cart_list:
+        prod = PRODUCTS.get(pid)
+        if prod:
+            total += prod["price"]
+    return total
+
+
+def checkout(cart_list):
+    """Return total bill and then clear the cart_list."""
+    total = calculate_total(cart_list)
+    cart_list.clear()
+    return total
+
+
+# ---------------- Streamlit UI ----------------
+
+st.title("🛒 Simple Online Shop System")
+st.write("Menu-driven Online Shop built with Python functions and Streamlit.")
+
+menu = st.sidebar.selectbox(
+    "Select Action",
+    ["View Products", "Add to Cart", "View Cart", "Remove Item", "Checkout", "Debug: Show Raw Cart"],
+)
+
+# --- View Products ---
+if menu == "View Products":
+    st.header("📦 Available Products")
+    products_data = show_products()
+
+    # Display in a table-like format
+    st.write("Here are all the products:")
+
+    # Build a simple table
+    for pid, name, price in products_data:
+        st.write(f"**ID:** {pid} | **Name:** {name} | **Price:** Rs {price}")
+
+# --- Add to Cart ---
+elif menu == "Add to Cart":
+    st.header("➕ Add Product to Cart")
+
+    products_data = show_products()
+    st.subheader("Product List")
+    for pid, name, price in products_data:
+        st.write(f"**ID:** {pid} | **Name:** {name} | **Price:** Rs {price}")
+
+    prod_id = st.number_input("Enter Product ID to add", min_value=1, step=1)
+
+    if st.button("Add to Cart"):
+        success, err = add_to_cart(cart, prod_id)
+        if success:
+            st.success(f"Product ID {prod_id} added to cart!")
+        else:
+            st.error(err)
+
+# --- View Cart ---
+elif menu == "View Cart":
+    st.header("🛍️ Your Cart")
+
+    items = view_cart(cart)
+
+    if not items:
+        st.info("Your cart is empty.")
+    else:
+        for pid, name, price in items:
+            st.write(f"**ID:** {pid} | **Name:** {name} | **Price:** Rs {price}")
+
+        total = calculate_total(cart)
+        st.subheader(f"Total: Rs {total}")
+
+# --- Remove Item ---
+elif menu == "Remove Item":
+    st.header("➖ Remove Item from Cart")
+
+    if not cart:
+        st.info("Your cart is empty. Nothing to remove.")
+    else:
+        items = view_cart(cart)
+        st.subheader("Items in Cart")
+        for pid, name, price in items:
+            st.write(f"**ID:** {pid} | **Name:** {name} | **Price:** Rs {price}")
+
+        prod_id = st.number_input("Enter Product ID to remove", min_value=1, step=1)
+
+        if st.button("Remove from Cart"):
+            success, err = remove_from_cart(cart, prod_id)
+            if success:
+                st.success(f"One unit of Product ID {prod_id} removed from cart.")
+            else:
+                st.error(err)
+
+# --- Checkout ---
+elif menu == "Checkout":
+    st.header("💳 Checkout")
+
+    if not cart:
+        st.info("Your cart is empty. Please add items before checkout.")
+    else:
+        items = view_cart(cart)
+        st.subheader("Cart Summary")
+        for pid, name, price in items:
+            st.write(f"**ID:** {pid} | **Name:** {name} | **Price:** Rs {price}")
+
+        if st.button("Confirm Checkout"):
+            total = checkout(cart)
+            st.success(f"Checkout successful! Your final bill is Rs {total}.")
+            st.info("Cart is now empty.")
+
+# --- Debug: Show Raw Cart ---
+elif menu == "Debug: Show Raw Cart":
+    st.header("🧪 Debug View - Raw Cart List")
+    st.write(cart)
